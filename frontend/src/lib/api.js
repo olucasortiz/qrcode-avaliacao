@@ -1,0 +1,63 @@
+export class ApiError extends Error {
+  constructor(message, status = 0, details = []) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.details = details;
+  }
+}
+
+let getToken = () => null;
+let onUnauthorized = () => {};
+export function configureAuthorization(tokenProvider, unauthorizedHandler) {
+  getToken = tokenProvider;
+  onUnauthorized = unauthorizedHandler;
+}
+
+const messages = {
+  400: 'Confira os dados informados.',
+  401: 'Email ou senha incorretos.',
+  403: 'Acesso indispon\u00edvel para esta origem.',
+  404: 'N\u00e3o encontramos este recurso.',
+  409: 'J\u00e1 existe um cadastro com esses dados.',
+  429: 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.',
+};
+
+export async function request(path, { method = 'GET', body, authenticated = true, responseType = 'json' } = {}) {
+  const token = authenticated ? getToken() : null;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const base = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+    const response = await fetch(`${base}${path}`, {
+      method, signal: controller.signal, credentials: 'omit',
+      headers: { Accept: responseType === 'png' ? 'image/png' : 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+    if (response.ok && responseType === 'png') {
+      if (!response.headers.get('Content-Type')?.toLowerCase().startsWith('image/png')) throw new ApiError('Recebemos um QR Code em formato inesperado. Tente novamente.');
+      const blob = await response.blob();
+      if (!blob.size) throw new ApiError('O QR Code est\u00e1 vazio. Tente novamente.');
+      return blob;
+    }
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      if (response.status === 401 && authenticated) onUnauthorized(token);
+      const businessMessage = authenticated && [400, 404, 409].includes(response.status) && typeof payload?.erro === 'string'
+        ? payload.erro : null;
+      throw new ApiError(businessMessage || messages[response.status] || 'O servi\u00e7o est\u00e1 indispon\u00edvel. Tente novamente.',
+        response.status, Array.isArray(payload?.detalhes) ? payload.detalhes : []);
+    }
+    if (response.status === 204) return null;
+    if (!payload) throw new ApiError('Recebemos uma resposta inesperada. Tente novamente.');
+    return payload;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(error.name === 'AbortError'
+      ? 'A conex\u00e3o demorou mais que o esperado. Tente novamente.'
+      : 'N\u00e3o foi poss\u00edvel conectar. Confira sua conex\u00e3o e tente novamente.');
+  } finally {
+    clearTimeout(timeout);
+  }
+}
