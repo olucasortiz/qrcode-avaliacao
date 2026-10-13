@@ -31,7 +31,8 @@ export async function obterResultados(empresaId, filtros, pesquisaIdRota) {
     const pesquisasAtivas = await tx.pesquisa.count({ where: { ...pesquisaWhere, status: 'ATIVA' } });
     const perguntas = await tx.pergunta.findMany({
       where: { pesquisa: pesquisaWhere }, orderBy: [{ pesquisaId: 'asc' }, { ordem: 'asc' }],
-      select: { id: true, pesquisaId: true, texto: true, tipo: true },
+      select: { id: true, pesquisaId: true, texto: true, tipo: true,
+        opcoes: { orderBy: { ordem: 'asc' }, select: { id: true, texto: true } } },
     });
     const counts = await tx.respostaPergunta.groupBy({ by: ['perguntaId'], where: answerWhere, _count: { _all: true } });
     const estrelas = await tx.respostaPergunta.groupBy({
@@ -39,6 +40,12 @@ export async function obterResultados(empresaId, filtros, pesquisaIdRota) {
     });
     const nps = await tx.respostaPergunta.groupBy({
       by: ['perguntaId', 'valorNps'], where: { ...answerWhere, tipo: 'NPS' }, _count: { _all: true },
+    });
+    const escolhas = await tx.respostaPergunta.groupBy({
+      by: ['perguntaId', 'opcaoPerguntaId'], where: { ...answerWhere, tipo: 'MULTIPLA_ESCOLHA' }, _count: { _all: true },
+    });
+    const simNao = await tx.respostaPergunta.groupBy({
+      by: ['perguntaId', 'valorSimNao'], where: { ...answerWhere, tipo: 'SIM_NAO' }, _count: { _all: true },
     });
 
     // Prisma writes SQLite timestamps as milliseconds; also accept SQLite text timestamps.
@@ -62,7 +69,8 @@ export async function obterResultados(empresaId, filtros, pesquisaIdRota) {
       pesquisasAtivas,
       perguntas: perguntas.map(pergunta => {
         const total = totais.get(pergunta.id) || 0;
-        const metricas = { ...pergunta, totalRespostas: total };
+        const { opcoes, ...publicFields } = pergunta;
+        const metricas = { ...publicFields, totalRespostas: total };
         if (pergunta.tipo === 'ESTRELAS') {
           const rows = estrelas.filter(row => row.perguntaId === pergunta.id);
           metricas.distribuicao = Array.from({ length: 5 }, (_, i) => ({ valor: i + 1,
@@ -75,6 +83,14 @@ export async function obterResultados(empresaId, filtros, pesquisaIdRota) {
           metricas.detratores = rows.filter(row => row.valorNps <= 6).reduce((sum, row) => sum + row._count._all, 0);
           metricas.neutros = total - metricas.promotores - metricas.detratores;
           metricas.nps = total ? (metricas.promotores - metricas.detratores) * 100 / total : null;
+        }
+        if (pergunta.tipo === 'SIM_NAO') {
+          metricas.distribuicao = [true, false].map(valor => ({ valor,
+            quantidade: simNao.find(row => row.perguntaId === pergunta.id && row.valorSimNao === valor)?._count._all || 0 }));
+        }
+        if (pergunta.tipo === 'MULTIPLA_ESCOLHA') {
+          metricas.distribuicao = opcoes.map(opcao => ({ ...opcao,
+            quantidade: escolhas.find(row => row.perguntaId === pergunta.id && row.opcaoPerguntaId === opcao.id)?._count._all || 0 }));
         }
         return metricas;
       }),

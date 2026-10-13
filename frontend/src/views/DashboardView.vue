@@ -98,6 +98,20 @@ onMounted(() => { loadChoices(); apply(); });
           <EmptyState v-if="!groups.length" compact title="Ainda n&#x00e3;o h&#x00e1; perguntas neste recorte." description="Consulte outras pesquisas para acompanhar os resultados por pergunta." />
           <div class="metrics-groups"><div v-for="group in groups" :key="group.id" class="metrics-group" :class="{ 'metrics-group--single': group.questions.length === 1, 'metrics-group--multiple': group.questions.length > 1 }"><RouterLink class="metrics-group__title text-link" :to="{ name: 'survey-detail', params: { id: group.id } }">{{ group.title }} <ArrowUpRight :size="14" aria-hidden="true" /></RouterLink><div class="metrics-grid"><QuestionMetrics v-for="question in group.questions" :key="question.id" :question="question" /></div></div></div>
         </section>
+        <section v-else-if="noSurveys" class="analytics-section onboarding-guide" aria-labelledby="guide-heading">
+          <header class="section-heading"><h2 id="guide-heading">Como funciona a coleta no FeedQR</h2><span>3 etapas simples</span></header>
+          <div class="onboarding-steps">
+            <div class="onboarding-step"><span class="step-badge">1</span><h3>Estruture suas perguntas</h3><p>Crie pesquisas r&#x00e1;pidas e objetivas utilizando estrelas, NPS, m&#x00fa;ltipla escolha, sim/n&#x00e3;o ou texto livre.</p></div>
+            <div class="onboarding-step"><span class="step-badge">2</span><h3>Gere e imprima QR Codes</h3><p>Cadastre pontos de coleta como mesas, balc&#x00f5;es ou caixas para rastrear exatamente de onde v&#x00ea;m as respostas.</p></div>
+            <div class="onboarding-step"><span class="step-badge">3</span><h3>Acompanhe m&#x00e9;tricas reais</h3><p>Os clientes apontam a c&#x00e2;mera e respondem em segundos. As notas m&#x00e9;dias e relat&#x00f3;rios s&#x00e3;o exibidos aqui.</p></div>
+          </div>
+        </section>
+        <section v-else-if="!hasFilters && !groups.length && data.totalRespostas === 0" class="analytics-section results-section" aria-labelledby="questions-empty-heading">
+          <header class="section-heading"><h2 id="questions-empty-heading">Resultados por pergunta</h2><span>Aguardando coleta</span></header>
+          <EmptyState compact eyebrow="M&#x00c9;TRICAS DETALHADAS" title="Os resultados aparecer&#x00e3;o ap&#x00f3;s a primeira resposta." description="Assim que os clientes responderem pelo QR Code nos seus pontos de coleta, as m&#x00e9;dias de notas, &#x00ed;ndice NPS e respostas detalhadas ser&#x00e3;o consolidados aqui por pergunta.">
+            <RouterLink v-if="collectionSurvey" class="button button--secondary" :to="{ name: 'survey-detail', params: { id: collectionSurvey.id }, query: { aba: collectionSurvey.status === 'ATIVA' ? 'pontos' : undefined } }">{{ collectionSurvey.status === 'ATIVA' ? 'Ver pontos de coleta e QR Code' : 'Completar perguntas da pesquisa' }} <ArrowUpRight :size="16" aria-hidden="true" /></RouterLink>
+          </EmptyState>
+        </section>
       </div>
     </template>
     <AppModal :open="createOpen" title="Primeira pesquisa" :busy="creating" @close="createOpen = false"><SurveyForm :save="surveys.create" @saved="created" @cancel="createOpen = false" @busy="creating = $event" /></AppModal>

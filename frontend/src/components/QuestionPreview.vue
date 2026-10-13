@@ -28,7 +28,7 @@ async function navigate(direction, skip = false) {
           <template v-else-if="question.tipo === 'NPS'"><div class="nps-controls"><label v-for="rating in 11" :key="rating"><input v-model="value" type="radio" name="preview-nps" :value="rating - 1" :aria-label="`Nota ${rating - 1}`" /><span>{{ rating - 1 }}</span></label></div><div class="scale-captions"><span>Nada prov&#x00e1;vel</span><span>Muito prov&#x00e1;vel</span></div></template>
           <div v-else-if="question.tipo === 'SIM_NAO'" class="choice-controls"><label v-for="choice in [{ label: 'Sim', value: true }, { label: 'N\u00e3o', value: false }]" :key="choice.label"><input v-model="value" type="radio" name="preview-boolean" :value="choice.value" /><span>{{ choice.label }}</span><Check :size="18" aria-hidden="true" /></label></div>
           <div v-else-if="question.tipo === 'TEXTO'" class="form-field"><label for="preview-text">Sua resposta</label><textarea id="preview-text" v-model="value" rows="4" maxlength="2000"></textarea><p class="muted">{{ value?.length || 0 }} / 2000</p></div>
-          <div v-else class="choice-controls"><label v-for="option in question.opcoes" :key="option.id"><input v-model="value" type="radio" :value="option.id" name="preview-option" /><span>{{ option.texto }}</span><Check :size="18" aria-hidden="true" /></label></div>
+          <div v-else class="choice-controls"><label v-for="option in question.opcoes" :key="option.id || option.ordem"><input v-model="value" type="radio" :value="option.id || option.ordem" name="preview-option" /><span>{{ option.texto }}</span><Check :size="18" aria-hidden="true" /></label></div>
         </fieldset>
         <p v-if="error" id="preview-error" role="alert" class="field-error">{{ error }}</p>
       </section></Transition>

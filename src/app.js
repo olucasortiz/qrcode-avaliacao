@@ -18,7 +18,7 @@ app.use(cors({
     callback(new AppError(403, 'Origem nao permitida.'));
   },
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
   exposedHeaders: ['Content-Disposition', 'Retry-After'],
 }));
 app.use('/api/auth', authLimiter);

@@ -107,9 +107,13 @@ Limites por 15 minutos: autenticacao 10/IP, leitura publica 120/IP, envio 30/IP,
 
 Erros usam `{ "erro": "mensagem" }`, com `detalhes` na validacao Zod. Codigos: 400 entrada invalida, 401 autenticacao, 403 CORS, 404 registro ausente ou de outra empresa, 409 conflito, 413 payload, 415 codificacao e 429 rate limit.
 
-## Frontend: etapas 1 e 2
+## Frontend: etapas 1 a 5
 
-Vue 3, Vite e Vue Router em `frontend/`. Inclui autenticacao, dashboard com filtros e grafico diario, resultados individuais por pergunta e gerenciamento paginado de pesquisas. Rascunhos podem ser criados, editados e excluidos; publicacao e encerramento exigem confirmacao. Perguntas sao somente leitura nesta etapa: pesquisas novas precisam de perguntas validas cadastradas pela API antes da publicacao. Editor, QR e coleta publica ficam para as proximas etapas.
+Vue 3, Vite e Vue Router em `frontend/`. Inclui autenticacao, dashboard com filtros e grafico diario, resultados individuais por pergunta, gerenciamento de pesquisas, editor dos cinco tipos de pergunta, pontos de coleta e QR Codes. Rascunhos podem ser editados e excluidos; publicacao e encerramento exigem confirmacao. A rota publica `/p/:slug?origem=:token` permite responder sem cadastro, uma pergunta por vez, com validacao, envio e agradecimento.
+
+Consulte [Etapa 4 — pesquisa publica](docs/etapa-4.md) para contratos, idempotencia, configuracao das URLs, testes pelo navegador/celular e local das capturas.
+
+A [Etapa 5 — resultados, feedbacks e CSV](docs/etapa-5.md) integra as abas de analise por pesquisa, filtros na URL, paginação real e download autenticado de CSV. Também acrescenta persistência pública após refresh, preservando tentativas incertas de envio com idempotência.
 
 ```bash
 npm --prefix frontend install

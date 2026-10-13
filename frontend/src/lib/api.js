@@ -23,7 +23,7 @@ const messages = {
   429: 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.',
 };
 
-export async function request(path, { method = 'GET', body, authenticated = true, responseType = 'json' } = {}) {
+export async function request(path, { method = 'GET', body, authenticated = true, responseType = 'json', idempotencyKey } = {}) {
   const token = authenticated ? getToken() : null;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -31,8 +31,9 @@ export async function request(path, { method = 'GET', body, authenticated = true
     const base = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
     const response = await fetch(`${base}${path}`, {
       method, signal: controller.signal, credentials: 'omit',
-      headers: { Accept: responseType === 'png' ? 'image/png' : 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      headers: { Accept: responseType === 'png' ? 'image/png' : responseType === 'csv' ? 'text/csv' : 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
     if (response.ok && responseType === 'png') {
@@ -40,6 +41,12 @@ export async function request(path, { method = 'GET', body, authenticated = true
       const blob = await response.blob();
       if (!blob.size) throw new ApiError('O QR Code est\u00e1 vazio. Tente novamente.');
       return blob;
+    }
+    if (response.ok && responseType === 'csv') {
+      if (!response.headers.get('Content-Type')?.toLowerCase().startsWith('text/csv')) throw new ApiError('O arquivo recebido não é um CSV válido. Tente novamente.');
+      const blob = await response.blob();
+      if (!blob.size) throw new ApiError('O arquivo recebido está vazio. Tente novamente.');
+      return { blob, disposition: response.headers.get('Content-Disposition') || '' };
     }
     const payload = await response.json().catch(() => null);
     if (!response.ok) {

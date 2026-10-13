@@ -41,7 +41,24 @@ watch(() => [page.value, status.value], fetchList, { immediate: true });
     <template v-else>
       <div class="survey-list" :class="{ 'is-updating': loading }" :aria-busy="loading">
         <table v-if="data.itens.length" class="surveys-table"><caption class="sr-only">Pesquisas da sua empresa</caption><thead><tr><th scope="col">Pesquisa</th><th scope="col">Status</th><th scope="col">Criada em</th></tr></thead><tbody><tr v-for="survey in data.itens" :key="survey.id"><td class="survey-cell"><RouterLink :to="{ name: 'survey-detail', params: { id: survey.id } }"><span>{{ survey.titulo }}</span><ArrowUpRight :size="16" aria-hidden="true" /></RouterLink><p v-if="survey.descricao">{{ survey.descricao }}</p></td><td><StatusBadge :status="survey.status" /></td><td class="survey-date"><span class="mobile-date-label">Criada em </span>{{ dateLabel(survey.createdAt) }}</td></tr></tbody></table>
-        <EmptyState v-else :eyebrow="status ? 'OUTRO MOMENTO, OUTRO STATUS' : 'O PRIMEIRO PASSO'" :title="status ? 'Nenhuma pesquisa com este status.' : 'Toda boa escuta tem um come\u00e7o.'" :description="status ? 'Escolha outro status para encontrar suas pesquisas ou comece um novo rascunho.' : 'Crie sua primeira pesquisa e descubra o que seus clientes t\u00eam a dizer.'"><AppButton v-if="status" variant="secondary" @click="router.push({ name: 'surveys' })">Ver todas as pesquisas <ArrowUpRight :size="17" aria-hidden="true" /></AppButton><AppButton v-else @click="createOpen = true"><Plus :size="17" aria-hidden="true" /> Criar primeira pesquisa</AppButton></EmptyState>
+        <EmptyState
+          v-else
+          :eyebrow="status ? 'FILTRO ATIVO' : 'PRIMEIRO PASSO'"
+          :title="status ? 'Nenhuma pesquisa com este status.' : 'Toda boa escuta tem um começo.'"
+          :description="status ? 'Nenhuma pesquisa encontrada para este status. Alterne o filtro para ver outras pesquisas ou crie um novo rascunho.' : 'Crie sua primeira pesquisa e gere QR Codes para começar a coletar a opinião dos seus clientes em minutos.'"
+        >
+          <template v-if="status">
+            <AppButton variant="secondary" @click="router.push({ name: 'surveys' })">
+              Ver todas as pesquisas <ArrowUpRight :size="17" aria-hidden="true" />
+            </AppButton>
+            <AppButton @click="createOpen = true">
+              <Plus :size="17" aria-hidden="true" /> Nova pesquisa
+            </AppButton>
+          </template>
+          <AppButton v-else @click="createOpen = true">
+            <Plus :size="17" aria-hidden="true" /> Criar primeira pesquisa
+          </AppButton>
+        </EmptyState>
         <PaginationControl :page="data.pagina" :pages="data.totalPaginas" :total="data.total" :busy="loading" @change="changePage" />
       </div>
     </template>

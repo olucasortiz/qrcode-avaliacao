@@ -117,6 +117,8 @@ model Resposta {
   id            String   @id @default(uuid())
   pesquisaId    String
   pontoColetaId String?
+  idempotencyKey String? @unique
+  submissionHash String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

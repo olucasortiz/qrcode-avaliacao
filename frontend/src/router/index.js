@@ -6,6 +6,7 @@ const router = createRouter({
   history: createWebHistory(),
   scrollBehavior: () => ({ top: 0 }),
   routes: [
+    { path: '/p/:slug', name: 'public-survey', component: () => import('../views/PublicSurveyView.vue'), meta: { publicSurvey: true, title: 'Sua opinião' } },
     { path: '/', component: () => import('../layouts/AuthLayout.vue'), children: [
       { path: '', redirect: '/entrar' },
       { path: 'entrar', name: 'login', component: () => import('../views/LoginView.vue'), meta: { guestOnly: true, title: 'Entrar' } },
@@ -22,6 +23,7 @@ const router = createRouter({
 });
 
 router.beforeEach(async to => {
+  if (to.meta.publicSurvey) return;
   await session.restore();
   const hasSession = session.state.phase !== 'anonymous';
   if (to.meta.requiresAuth && !hasSession) return { name: 'login', query: session.state.reason === 'expired' ? { motivo: 'expirada' } : {} };

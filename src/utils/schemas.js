@@ -15,7 +15,7 @@ export const envioSchema = z.strictObject({
   respostas: z.array(z.strictObject({
     perguntaId: idSchema,
     valor: z.union([z.number(), z.boolean(), z.string().max(2000)]),
-  })).min(1),
+  })),
 });
 
 export const valorSchemas = {

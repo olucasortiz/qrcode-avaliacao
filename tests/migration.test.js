@@ -19,6 +19,12 @@ test('migration preserva pontos existentes e suas respostas', () => {
     assert.equal(ponto.id, 'ponto');
     assert.match(ponto.token, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     assert.equal(db.prepare('SELECT pontoColetaId FROM Resposta').get().pontoColetaId, ponto.id);
+    db.exec(readFileSync('prisma/migrations/20261008120000_resposta_idempotencia/migration.sql', 'utf8'));
+    const resposta = db.prepare('SELECT * FROM Resposta').get();
+    assert.equal(resposta.id, 'resposta');
+    assert.equal(resposta.pontoColetaId, ponto.id);
+    assert.equal(resposta.idempotencyKey, null);
+    assert.equal(resposta.submissionHash, null);
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
   } finally { db.close(); }
 });
