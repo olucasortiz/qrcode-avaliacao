@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/mongo-client"
+}
+
+datasource db {
+  provider     = "mongodb"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+enum TipoPergunta {
+  ESTRELAS
+  NPS
+  SIM_NAO
+  TEXTO
+  MULTIPLA_ESCOLHA
+}
+
+enum StatusPesquisa {
+  RASCUNHO
+  ATIVA
+  ENCERRADA
+}
+
+model Empresa {
+  id        String   @id @default(uuid()) @map("_id")
+  nome      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuarios  Usuario[]
+  pesquisas Pesquisa[]
+}
+
+model Usuario {
+  id        String   @id @default(uuid()) @map("_id")
+  empresaId String
+  nome      String
+  email     String   @unique
+  senhaHash String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([empresaId])
+}
+
+model Pesquisa {
+  id        String         @id @default(uuid()) @map("_id")
+  empresaId String
+  titulo    String
+  descricao String?
+  status       StatusPesquisa @default(RASCUNHO)
+  slug         String         @unique
+  writeVersion Int            @default(1)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  empresa      Empresa       @relation(fields: [empresaId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  perguntas    Pergunta[]
+  pontosColeta PontoColeta[]
+  respostas    Resposta[]
+
+  @@index([empresaId, status])
+}
+
+model Pergunta {
+  id          String       @id @default(uuid()) @map("_id")
+  pesquisaId  String
+  texto       String
+  tipo        TipoPergunta
+  obrigatoria Boolean      @default(true)
+  ordem       Int
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  pesquisa  Pesquisa           @relation(fields: [pesquisaId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  opcoes    OpcaoPergunta[]
+  respostas RespostaPergunta[]
+
+  @@unique([pesquisaId, ordem])
+  @@unique([id, pesquisaId, tipo])
+}
+
+model OpcaoPergunta {
+  id         String   @id @default(uuid()) @map("_id")
+  perguntaId String
+  texto      String
+  ordem      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  pergunta  Pergunta           @relation(fields: [perguntaId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  respostas RespostaPergunta[]
+
+  @@unique([perguntaId, ordem])
+  @@unique([id, perguntaId])
+}
+
+model PontoColeta {
+  id         String   @id @default(uuid()) @map("_id")
+  token      String   @unique @default(uuid())
+  pesquisaId String
+  nome       String
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  pesquisa  Pesquisa   @relation(fields: [pesquisaId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  respostas Resposta[]
+
+  @@unique([id, pesquisaId])
+  @@index([pesquisaId, ativo])
+}
+
+model Resposta {
+  id             String   @id @default(uuid()) @map("_id")
+  pesquisaId     String
+  pontoColetaId  String?
+  idempotencyKey String?  // Sem @unique declarativo: gerenciado via índice parcial do MongoDB
+  submissionHash String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  pesquisa    Pesquisa           @relation(fields: [pesquisaId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  pontoColeta PontoColeta?       @relation(fields: [pontoColetaId, pesquisaId], references: [id, pesquisaId], onDelete: Restrict, onUpdate: Restrict)
+  perguntas   RespostaPergunta[]
+
+  @@unique([id, pesquisaId])
+  @@index([pesquisaId, createdAt])
+  @@index([pontoColetaId, pesquisaId])
+}
+
+model RespostaPergunta {
+  id              String       @id @default(uuid()) @map("_id")
+  respostaId      String
+  pesquisaId      String
+  perguntaId      String
+  tipo            TipoPergunta
+  valorEstrelas   Int?
+  valorNps        Int?
+  valorSimNao     Boolean?
+  valorTexto      String?
+  opcaoPerguntaId String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  resposta      Resposta       @relation(fields: [respostaId, pesquisaId], references: [id, pesquisaId], onDelete: Restrict, onUpdate: Restrict)
+  pergunta      Pergunta       @relation(fields: [perguntaId, pesquisaId, tipo], references: [id, pesquisaId, tipo], onDelete: Restrict, onUpdate: Restrict)
+  opcaoPergunta OpcaoPergunta? @relation(fields: [opcaoPerguntaId, perguntaId], references: [id, perguntaId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([respostaId, perguntaId])
+  @@index([respostaId, pesquisaId])
+  @@index([perguntaId, pesquisaId, tipo])
+  @@index([opcaoPerguntaId, perguntaId])
+}

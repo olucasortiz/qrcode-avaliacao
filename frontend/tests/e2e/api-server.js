@@ -1,37 +1,57 @@
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { DatabaseSync } from 'node:sqlite';
+import { MongoMemoryReplSet } from 'mongodb-memory-server';
+import { runSync } from '../../../scripts/sync-mongodb.js';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 process.chdir(root);
-const directory = mkdtempSync(join(tmpdir(), 'feedqr-browser-'));
-const path = join(directory, 'browser.db');
+
 const devDb = join(root, 'prisma/dev.db');
 const hash = () => existsSync(devDb) ? createHash('sha256').update(readFileSync(devDb)).digest('hex') : null;
 const originalHash = hash();
-new DatabaseSync(path).close();
-Object.assign(process.env, { NODE_ENV: 'test', PORT: '4178',
-  DATABASE_URL: `file:${path.replaceAll('\\', '/')}`, TEST_DATABASE_URL: `file:${path.replaceAll('\\', '/')}`,
+
+// Iniciar Mongo Memory Replica Set para o servidor de teste E2E
+const replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+const uri = replSet.getUri('feedqr_browser_test');
+
+Object.assign(process.env, {
+  NODE_ENV: 'test',
+  PORT: '4178',
+  DATABASE_URL: uri,
+  TEST_DATABASE_URL: uri,
   JWT_SECRET: 'feedqr-browser-test-secret-with-more-than-32-characters',
-  FRONTEND_PUBLIC_URL: 'http://127.0.0.1:4177', CORS_ORIGINS: 'http://127.0.0.1:4177',
+  FRONTEND_PUBLIC_URL: 'http://127.0.0.1:4177',
+  CORS_ORIGINS: 'http://127.0.0.1:4177',
 });
-execFileSync(process.execPath, [join(root, 'node_modules/prisma/build/index.js'), 'migrate', 'deploy'], { env: process.env, stdio: 'pipe' });
+
+// Sincronizar coleções, índices e validators
+await runSync({ uri, mode: 'apply' });
+
 const { default: app } = await import('../../../src/app.js');
-const { default: prisma } = await import('../../../src/config/prisma.js');
+const { default: prisma, disconnectPrisma } = await import('../../../src/config/prisma.js');
 const { seedAdmin } = await import('./seed-admin.js');
+
 await seedAdmin();
-const server = app.listen(4178, '127.0.0.1');
+
+const server = app.listen(4178, '127.0.0.1', () => {
+  console.log('E2E Backend API listening on http://127.0.0.1:4178');
+});
+
 let stopping = false;
 async function stop() {
-  if (stopping) return; stopping = true;
+  if (stopping) return;
+  stopping = true;
   await new Promise(resolve => server.close(resolve));
-  await prisma.$disconnect();
-  rmSync(directory, { recursive: true, force: true });
-  if (hash() !== originalHash) { console.error('O banco de desenvolvimento foi alterado.'); process.exit(1); }
+  await disconnectPrisma();
+  await replSet.stop();
+  if (hash() !== originalHash) {
+    console.error('O banco de desenvolvimento original SQLite foi alterado.');
+    process.exit(1);
+  }
   process.exit(0);
 }
-process.once('SIGINT', stop); process.once('SIGTERM', stop);
+
+process.once('SIGINT', stop);
+process.once('SIGTERM', stop);

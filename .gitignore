@@ -1,16 +1,56 @@
+
+# Dependências
 node_modules/
-.env*
+**/node_modules/
+
+# Variáveis de ambiente e credenciais
+.env
+.env.*
 !.env.example
-*.db
-*.db-*
-*.sqlite*
+!.env.*.example
 *.pem
 *.key
 *.p12
 *.pfx
-coverage/
-*.log
+
+# Bancos locais e backups
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+backups/
+*.dump
+*.bak
+*.snapshot
+
+# Prisma: preservar os schemas, ignorar código gerado
+prototype/generated-client/
+src/generated/
+
+# Builds
+dist/
 frontend/dist/
+
+# Testes, cobertura e relatórios gerados
+coverage/
+**/coverage/
 frontend/test-results/
 frontend/playwright-report/
 frontend/artifacts/
+
+# Logs e arquivos temporários
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+
+# Arquivos locais de IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/

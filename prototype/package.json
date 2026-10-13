@@ -1,0 +1,9 @@
+{
+  "name": "feedqr-mongodb-prototype",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "mongodb-memory-server": "^11.3.0"
+  }
+}
