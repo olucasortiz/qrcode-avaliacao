@@ -47,11 +47,8 @@ export function validateTargetSafety(uri, options = {}) {
 }
 
 function normalizeKey(keyObj) {
-  const normalized = {};
-  for (const k of Object.keys(keyObj).sort()) {
-    normalized[k] = keyObj[k];
-  }
-  return JSON.stringify(normalized);
+  // Compound index field order is significant in MongoDB.
+  return JSON.stringify(keyObj);
 }
 
 function normalizeOptions(options = {}) {
@@ -126,7 +123,9 @@ export function compareWithManifest(currentState, manifest = MONGO_MANIFEST) {
       } else {
         const expectedValStr = JSON.stringify(colSpec.validator);
         const actualValStr = JSON.stringify(existingCol.validator);
-        if (expectedValStr === actualValStr) {
+        if (expectedValStr === actualValStr &&
+          (existingCol.options?.validationLevel || 'strict') === 'strict' &&
+          (existingCol.options?.validationAction || 'error') === 'error') {
           diff.validatorsPresent.push(colName);
         } else {
           diff.validatorsDivergent.push({
@@ -221,7 +220,7 @@ export async function runSync({ uri, mode = 'dry-run', allowRemote = false, mani
         diff.validatorsMissing.length > 0 ||
         diff.indexesMissing.length > 0;
 
-      if (isMissing) {
+      if (isMissing || diff.unexpectedCollections.length > 0) {
         const err = new Error(`VERIFY FALHOU: O banco não possui todos os recursos declarados no manifest.`);
         err.report = report;
         throw err;
@@ -234,6 +233,7 @@ export async function runSync({ uri, mode = 'dry-run', allowRemote = false, mani
     }
 
     if (mode === 'apply') {
+      if (diff.unexpectedCollections.length) throw new Error('Colecoes inesperadas: revise o banco alvo antes de aplicar o manifest.');
       // 1. Criar coleções ausentes
       for (const colName of diff.collectionsMissing) {
         const colSpec = manifest.collections[colName];
@@ -312,7 +312,7 @@ if (process.argv[1]?.includes('sync-mongodb.js')) {
       process.exit(0);
     })
     .catch(err => {
-      console.error('\nERRO NO SINCRONIZADOR:', err.message);
+      console.error('\nERRO NO SINCRONIZADOR. Revise o alvo, as permissoes e o manifest; detalhes internos omitidos.');
       if (err.report) console.log('Resumo do erro:', JSON.stringify(err.report.summary, null, 2));
       process.exit(1);
     });

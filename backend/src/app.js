@@ -16,6 +16,7 @@ if (env.trustProxy) {
 }
 
 app.use(helmet());
+app.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 app.use(cors({
   origin(origin, callback) {
     if (!origin || env.corsOrigins.includes(origin)) return callback(null, true);

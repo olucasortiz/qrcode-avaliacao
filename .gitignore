@@ -27,6 +27,7 @@ backups/
 # Prisma: preservar os schemas, ignorar código gerado
 prototype/generated-client/
 src/generated/
+backend/src/generated/
 
 # Builds
 dist/
@@ -54,3 +55,6 @@ Thumbs.db
 !.vscode/extensions.json
 !.vscode/settings.json
 .idea/
+docs/*
+!docs/deployment/
+!docs/deployment/**

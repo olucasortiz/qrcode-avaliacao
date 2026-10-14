@@ -1,0 +1,28 @@
+# Review only: applying this Blueprint creates a service and starts deployment.
+services:
+  - type: web
+    name: feedqr-api
+    runtime: node
+    plan: free
+    numInstances: 1
+    branch: feat/mongodb-migration
+    rootDir: backend
+    autoDeployTrigger: "off"
+    buildCommand: npm ci --include=dev && npm run build && npm prune --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health/ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 24.21.0
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_PUBLIC_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

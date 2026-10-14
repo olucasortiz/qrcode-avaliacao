@@ -12,6 +12,23 @@ import {
 import { MONGO_MANIFEST } from '../src/config/mongo/schemaManifest.js';
 
 describe('TASK 07.3: Sincronizador de Índices e Validators MongoDB', () => {
+  test('verification detects disabled validation, reversed compound indexes and unexpected collections', () => {
+    const spec = MONGO_MANIFEST.collections.Pesquisa;
+    const expected = { Pesquisa: { validator: spec.validator, options: { validationLevel: 'strict', validationAction: 'error' },
+      indexes: spec.indexes.map(index => ({ ...index })) } };
+    const manifest = { collections: { Pesquisa: spec } };
+    assert.equal(compareWithManifest(expected, manifest).validatorsDivergent.length, 0);
+    expected.Pesquisa.options.validationAction = 'warn';
+    assert.equal(compareWithManifest(expected, manifest).validatorsDivergent.length, 1);
+    expected.Pesquisa.options.validationAction = 'error';
+    expected.Pesquisa.options.validationLevel = 'off';
+    assert.equal(compareWithManifest(expected, manifest).validatorsDivergent.length, 1);
+    const compound = expected.Pesquisa.indexes.find(index => Object.keys(index.key).length > 1);
+    compound.key = Object.fromEntries(Object.entries(compound.key).reverse());
+    assert.equal(compareWithManifest(expected, manifest).indexesDivergent.length, 1);
+    expected.Unrelated = { indexes: [] };
+    assert.deepEqual(compareWithManifest(expected, manifest).unexpectedCollections, ['Unrelated']);
+  });
   let replSet;
   let baseUri;
 

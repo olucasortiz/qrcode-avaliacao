@@ -2,13 +2,13 @@ import app from './app.js';
 import { env } from './config/env.js';
 import { disconnectPrisma, checkDatabaseReadiness } from './config/prisma.js';
 
-const server = app.listen(env.port, async () => {
+const server = app.listen(env.port, '0.0.0.0', async () => {
   console.log(`FeedQR API running on port ${env.port}`);
   const dbStatus = await checkDatabaseReadiness();
   if (dbStatus.ready) {
     console.log('MongoDB connection verified and ready.');
   } else {
-    console.warn(`Aviso: MongoDB nao alcancavel na inicializacao (${dbStatus.error}).`);
+    console.warn('MongoDB indisponivel na inicializacao; readiness retornara 503.');
   }
 });
 
@@ -24,8 +24,8 @@ async function gracefulShutdown(signal) {
       await disconnectPrisma();
       console.log('Conexao com Prisma/MongoDB encerrada.');
       process.exit(0);
-    } catch (err) {
-      console.error('Erro ao desconectar Prisma:', err);
+    } catch {
+      console.error('Erro ao desconectar Prisma.');
       process.exit(1);
     }
   });

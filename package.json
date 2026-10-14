@@ -1,0 +1,22 @@
+{
+  "name": "feedqr",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": "24.x" },
+  "scripts": {
+    "dev": "npm --prefix backend run dev",
+    "start": "npm --prefix backend start",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "test": "npm --prefix backend test",
+    "prisma:generate": "npm --prefix backend run prisma:generate",
+    "prisma:validate": "npm --prefix backend run prisma:validate",
+    "mongo:sync": "npm --prefix backend run mongo:sync --",
+    "mongo:verify-atlas": "npm --prefix backend run mongo:verify-atlas",
+    "mongo:migrate": "npm --prefix backend run mongo:migrate --",
+    "mongo:rollback": "npm --prefix backend run mongo:rollback --",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build",
+    "frontend:test": "npm --prefix frontend test",
+    "frontend:e2e": "npm --prefix frontend run test:e2e"
+  }
+}

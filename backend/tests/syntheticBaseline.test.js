@@ -11,17 +11,20 @@ import {
 } from './fixtures/syntheticBaseline.js';
 
 const DEV_DB_PATH = resolve('prisma/dev.db');
-const EXPECTED_DEV_DB_HASH = '15207b88446f8be4a86e9defab2995bd444980ce52153a64bf538aaef57500c4';
 
 function getDevDbHash() {
   if (!existsSync(DEV_DB_PATH)) return null;
   return createHash('sha256').update(readFileSync(DEV_DB_PATH)).digest('hex');
 }
 
+// Clean clones intentionally contain no customer/development database.
+// When a local database exists, protect its actual initial contents.
+const originalDevDbHash = getDevDbHash();
+
 describe('TASK 07.1: Fixtures sintéticas de caracterização e isolamento do baseline', () => {
   test('o banco original prisma/dev.db não é modificado', () => {
     const hash = getDevDbHash();
-    assert.equal(hash, EXPECTED_DEV_DB_HASH, 'prisma/dev.db foi modificado ou está ausente!');
+    assert.equal(hash, originalDevDbHash, 'prisma/dev.db foi modificado!');
   });
 
   test('as migrations aplicam com sucesso em banco descartável e aceitam as fixtures sintéticas', () => {
@@ -125,6 +128,6 @@ describe('TASK 07.1: Fixtures sintéticas de caracterização e isolamento do ba
 
   test('prisma/dev.db permanece intacto após execução do teste', () => {
     const hash = getDevDbHash();
-    assert.equal(hash, EXPECTED_DEV_DB_HASH, 'prisma/dev.db foi modificado durante o teste!');
+    assert.equal(hash, originalDevDbHash, 'prisma/dev.db foi modificado durante o teste!');
   });
 });

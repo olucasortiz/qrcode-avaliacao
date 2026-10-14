@@ -10,7 +10,8 @@ import { runMigration } from '../scripts/migrate-sqlite-to-mongo.js';
 import { populateSyntheticBaseline, getSyntheticCounts } from './fixtures/syntheticBaseline.js';
 
 const DEV_DB_PATH = resolve('prisma/dev.db');
-const EXPECTED_HASH = '15207b88446f8be4a86e9defab2995bd444980ce52153a64bf538aaef57500c4';
+const devHash = () => existsSync(DEV_DB_PATH) ? createHash('sha256').update(readFileSync(DEV_DB_PATH)).digest('hex') : null;
+const originalDevHash = devHash();
 
 describe('FASE 6: Ferramenta de Migração SQLite -> MongoDB', () => {
   test('migra base sintética completa com paridade absoluta de contagens e tipos BSON', async () => {
@@ -89,8 +90,7 @@ describe('FASE 6: Ferramenta de Migração SQLite -> MongoDB', () => {
       }
 
       // 9. Verificar hash de dev.db original
-      const currentDevHash = createHash('sha256').update(readFileSync(DEV_DB_PATH)).digest('hex');
-      assert.equal(currentDevHash, EXPECTED_HASH, 'prisma/dev.db foi alterado indevidamente durante os testes!');
+      assert.equal(devHash(), originalDevHash, 'prisma/dev.db foi alterado indevidamente durante os testes!');
     } finally {
       await replSet.stop();
       if (existsSync(tempSqlitePath)) {

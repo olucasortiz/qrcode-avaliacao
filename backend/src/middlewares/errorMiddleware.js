@@ -25,6 +25,9 @@ export function errorHandler(error, req, res, next) {
     return res.status(400).json({ erro: 'Documento falhou na validacao de schema do banco de dados.' });
   }
   if (error.code === 'P2025') return res.status(404).json({ erro: 'Registro nao encontrado.' });
-  console.error(error);
+  // Prisma errors can contain request arguments and credentials.
+  console.error('Erro interno na API.', {
+    code: typeof error.code === 'string' && /^P\d{4}$/.test(error.code) ? error.code : 'INTERNAL',
+  });
   return res.status(500).json({ erro: 'Erro interno.' });
 }

@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 
 const password = 'FeedQR-browser-123';
 let savedSession;
-const devDb = resolve('../prisma/dev.db');
+const devDb = resolve('../backend/prisma/dev.db');
 const devHash = () => existsSync(devDb) ? createHash('sha256').update(readFileSync(devDb)).digest('hex') : null;
 const originalDevHash = devHash();
 test.afterAll(() => expect(devHash()).toBe(originalDevHash));

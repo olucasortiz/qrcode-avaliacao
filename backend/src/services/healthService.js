@@ -12,6 +12,5 @@ export async function getReadinessStatus() {
   return {
     status: db.ready ? 'ok' : 'error',
     database: db.ready ? 'connected' : 'disconnected',
-    ...(db.error ? { error: db.error } : {}),
   };
 }

@@ -347,6 +347,5 @@ describe('Seguranca HTTP', () => {
     await postResposta({}).expect(429);
     for (let i = 0; i < 5; i++) await csvRequest().expect(200);
     await csvRequest().expect(429);
-    assert.deepEqual(await prisma.$queryRawUnsafe('PRAGMA foreign_key_check'), []);
   });
 });

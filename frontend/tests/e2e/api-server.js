@@ -2,10 +2,14 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { MongoMemoryReplSet } from 'mongodb-memory-server';
-import { runSync } from '../../../scripts/sync-mongodb.js';
+import { createRequire } from 'node:module';
+import { runSync } from '../../../backend/scripts/sync-mongodb.js';
 
-const root = fileURLToPath(new URL('../../../', import.meta.url));
+// Resolve the test database dependency from the package that owns it.
+const requireBackend = createRequire(new URL('../../../backend/package.json', import.meta.url));
+const { MongoMemoryReplSet } = requireBackend('mongodb-memory-server');
+
+const root = fileURLToPath(new URL('../../../backend/', import.meta.url));
 process.chdir(root);
 
 const devDb = join(root, 'prisma/dev.db');
@@ -29,8 +33,8 @@ Object.assign(process.env, {
 // Sincronizar coleções, índices e validators
 await runSync({ uri, mode: 'apply' });
 
-const { default: app } = await import('../../../src/app.js');
-const { default: prisma, disconnectPrisma } = await import('../../../src/config/prisma.js');
+const { default: app } = await import('../../../backend/src/app.js');
+const { disconnectPrisma } = await import('../../../backend/src/config/prisma.js');
 const { seedAdmin } = await import('./seed-admin.js');
 
 await seedAdmin();

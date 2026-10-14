@@ -1,35 +1,28 @@
-import 'dotenv/config';
+import { env } from './env.js';
 import { PrismaClient, Prisma } from '../generated/mongo-client/index.js';
 
 let prismaInstance = null;
 
-function enhanceClient(client) {
-  client.$queryRawUnsafe = async (query) => {
-    if (typeof query === 'string' && query.includes('PRAGMA')) {
-      return [];
-    }
-    throw new Error(`$queryRawUnsafe nao suportado no MongoDB para a query: ${query}`);
-  };
-  return client;
-}
+// Query logs can contain feedback, emails and credentials. Keep production silent.
+const logs = () => process.env.NODE_ENV === 'production' ? [] :
+  (process.env.PRISMA_LOG ? ['query', 'info', 'warn', 'error'] : []);
 
 export function getPrismaClient(options = {}) {
   if (options.datasourceUrl || options.forceNew) {
     const client = new PrismaClient({
-      datasourceUrl: options.datasourceUrl || process.env.DATABASE_URL,
-      log: process.env.PRISMA_LOG ? ['query', 'info', 'warn', 'error'] : ['error'],
+      datasourceUrl: options.datasourceUrl || env.databaseUrl,
+      log: logs(),
     });
-    return enhanceClient(client);
+    return client;
   }
   if (!prismaInstance) {
     if (process.env.NODE_ENV === 'test' && (!process.env.TEST_DATABASE_URL || process.env.DATABASE_URL !== process.env.TEST_DATABASE_URL)) {
       throw new Error('Testes exigem DATABASE_URL igual ao banco temporario TEST_DATABASE_URL.');
     }
     prismaInstance = new PrismaClient({
-      datasourceUrl: process.env.DATABASE_URL,
-      log: process.env.PRISMA_LOG ? ['query', 'info', 'warn', 'error'] : ['error'],
+      datasourceUrl: env.databaseUrl,
+      log: logs(),
     });
-    enhanceClient(prismaInstance);
   }
   return prismaInstance;
 }
@@ -38,8 +31,8 @@ export async function checkDatabaseReadiness(client = getPrismaClient()) {
   try {
     await client.$runCommandRaw({ ping: 1 });
     return { ready: true };
-  } catch (err) {
-    return { ready: false, error: err.message };
+  } catch {
+    return { ready: false };
   }
 }
 

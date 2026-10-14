@@ -11,7 +11,8 @@ import { runRollback } from '../scripts/rollback-mongo-to-sqlite.js';
 import { populateSyntheticBaseline, getSyntheticCounts } from './fixtures/syntheticBaseline.js';
 
 const DEV_DB_PATH = resolve('prisma/dev.db');
-const EXPECTED_HASH = '15207b88446f8be4a86e9defab2995bd444980ce52153a64bf538aaef57500c4';
+const devHash = () => existsSync(DEV_DB_PATH) ? createHash('sha256').update(readFileSync(DEV_DB_PATH)).digest('hex') : null;
+const originalDevHash = devHash();
 
 describe('FASE 7: Ferramenta de Rollback MongoDB -> SQLite', () => {
   test('reconstrói novo SQLite íntegro após migração e novas escritas no MongoDB', async () => {
@@ -118,8 +119,7 @@ describe('FASE 7: Ferramenta de Rollback MongoDB -> SQLite', () => {
       }
 
       // 6. Assegurar que o dev.db original NUNCA foi tocado
-      const currentDevHash = createHash('sha256').update(readFileSync(DEV_DB_PATH)).digest('hex');
-      assert.equal(currentDevHash, EXPECTED_HASH);
+      assert.equal(devHash(), originalDevHash);
     } finally {
       await replSet.stop();
       if (existsSync(tempSqlitePath)) rmSync(tempSqlitePath, { force: true });

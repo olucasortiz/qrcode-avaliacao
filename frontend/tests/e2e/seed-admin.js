@@ -1,5 +1,5 @@
-import { cadastrar } from '../../../src/services/authService.js';
-import prisma from '../../../src/config/prisma.js';
+import { cadastrar } from '../../../backend/src/services/authService.js';
+import prisma from '../../../backend/src/config/prisma.js';
 
 export async function seedAdmin() {
   if (process.env.NODE_ENV !== 'test' || process.env.DATABASE_URL !== process.env.TEST_DATABASE_URL) throw new Error('Fixtures exigem o banco isolado de testes.');

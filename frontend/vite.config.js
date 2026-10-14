@@ -1,13 +1,18 @@
 import http from 'node:http';
 import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
+import { deploymentConfig } from './src/lib/deploymentConfig.js';
 
 const proxyAgent = new http.Agent({ keepAlive: true, maxSockets: 100 });
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  const deployment = command === 'build' ? deploymentConfig({ ...env, ...process.env }, process.env.CF_PAGES === '1') : null;
   return {
-    plugins: [vue()],
+    plugins: [vue(), ...(deployment ? [{
+      name: 'feedqr-pages-headers',
+      generateBundle() { this.emitFile({ type: 'asset', fileName: '_headers', source: deployment.headers }); },
+    }] : [])],
     server: {
       port: 5173,
       proxy: {

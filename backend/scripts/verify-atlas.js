@@ -7,7 +7,13 @@ export async function verifyAtlasConnection({ uri, allowRemote = true }) {
   const { dbName } = validateTargetSafety(uri, { allowRemote });
 
   const isSrv = uri.startsWith('mongodb+srv://');
-  const isTls = isSrv || uri.includes('tls=true') || uri.includes('ssl=true');
+  const options = new URL(uri).searchParams;
+  const insecureTls = [...options].some(([key, value]) => {
+    const name = key.toLowerCase();
+    return (['tls', 'ssl'].includes(name) && value.toLowerCase() !== 'true') ||
+      (['tlsallowinvalidcertificates', 'tlsallowinvalidhostnames', 'tlsinsecure'].includes(name) && value.toLowerCase() !== 'false');
+  });
+  const isTls = !insecureTls && (isSrv || options.get('tls') === 'true' || options.get('ssl') === 'true');
 
   console.log(`\n=== Verificação de Conexão com MongoDB Atlas / Cluster Remoto ===`);
   console.log(`URI Sanitizada: ${sanitizedUri}`);
@@ -61,6 +67,8 @@ export async function verifyAtlasConnection({ uri, allowRemote = true }) {
       diff.validatorsDivergent.length === 0 &&
       diff.indexesMissing.length === 0 &&
       diff.indexesDivergent.length === 0;
+    const safeTopology = isTls && !!report.replicaSet && report.isWritablePrimary;
+    report.productionReady = safeTopology && isCompliant && diff.unexpectedCollections.length === 0;
 
     report.schemaCompliance = {
       isCompliant,
@@ -77,8 +85,8 @@ export async function verifyAtlasConnection({ uri, allowRemote = true }) {
 
     return report;
   } catch (err) {
-    report.error = err.message;
-    console.error(`FALHA NA CONEXÃO COM O CLUSTER: ${err.message}`);
+    report.error = 'Falha de conexao ou verificacao do cluster.';
+    console.error(report.error);
     return report;
   } finally {
     await client.close();
@@ -99,7 +107,7 @@ if (process.argv[1]?.includes('verify-atlas.js')) {
 
   verifyAtlasConnection({ uri, allowRemote: true })
     .then(res => {
-      process.exit(res.connected && res.schemaCompliance?.isCompliant ? 0 : (res.connected ? 2 : 1));
+      process.exit(res.productionReady ? 0 : (res.connected ? 2 : 1));
     })
     .catch(() => process.exit(1));
 }
