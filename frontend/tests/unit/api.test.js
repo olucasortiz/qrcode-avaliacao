@@ -44,4 +44,12 @@ describe('Cliente HTTP', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 429 })));
     await expect(request('/auth/login', { authenticated: false })).rejects.toThrow('Muitas tentativas');
   });
+  it('trata 503 com mensagem sanitizada da API ou mensagem padrao de indisponibilidade', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ erro: 'Servico temporariamente indisponivel.' }), { status: 503 })));
+    await expect(request('/auth/login', { authenticated: false })).rejects.toThrow('Servico temporariamente indisponivel.');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 503 })));
+    await expect(request('/auth/login', { authenticated: false })).rejects.toThrow('Serviço temporariamente indisponível.');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 504 })));
+    await expect(request('/auth/login', { authenticated: false })).rejects.toThrow('A resposta do serviço demorou mais que o esperado.');
+  });
 });

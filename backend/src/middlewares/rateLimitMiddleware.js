@@ -1,6 +1,7 @@
 import { rateLimit } from 'express-rate-limit';
 
 const options = { windowMs: 15 * 60 * 1000, standardHeaders: 'draft-8', legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   message: { erro: 'Limite de requisicoes excedido. Tente novamente mais tarde.' } };
 
 export const publicReadLimiter = rateLimit({ ...options, limit: 120 });

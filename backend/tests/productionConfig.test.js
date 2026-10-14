@@ -67,6 +67,77 @@ test('unexpected errors omit raw messages from both responses and logs', () => {
   } finally { logs.mockRestore(); }
 });
 
+test('public database availability failures return sanitized 503, then recover without changing validation', async () => {
+  const logs = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const spy = vi.spyOn(prisma.pesquisa, 'findFirst');
+  try {
+    for (const code of ['P1001', 'P1002', 'P1008', 'P1011', 'P1017', 'P2024', 'P2028']) {
+      for (const property of ['code', 'errorCode']) {
+        spy.mockRejectedValueOnce(Object.assign(new Error('mongodb://secret:password@internal-host/private-data'), { [property]: code }));
+        const response = await supertest(app).get('/api/public/pesquisas/startup-test').expect(503);
+        assert.deepEqual(response.body, { erro: 'Servico temporariamente indisponivel.' });
+        assert.equal(response.headers['retry-after'], '1');
+        assert.equal(response.headers['cache-control'], 'no-store');
+      }
+    }
+    // Also test P2010 with connection/timed out message
+    spy.mockRejectedValueOnce(Object.assign(new Error('Server selection timed out after 5000 ms'), { code: 'P2010' }));
+    const p2010Response = await supertest(app).get('/api/public/pesquisas/startup-test').expect(503);
+    assert.deepEqual(p2010Response.body, { erro: 'Servico temporariamente indisponivel.' });
+
+    const pesquisa = { id: 'synthetic-id', titulo: 'Sintetica', descricao: null, slug: 'startup-test', perguntas: [] };
+    spy.mockResolvedValueOnce(pesquisa);
+    const recovered = await supertest(app).get('/api/public/pesquisas/startup-test').expect(200);
+    assert.equal(recovered.body.slug, 'startup-test');
+    spy.mockResolvedValueOnce(null);
+    await supertest(app).get('/api/public/pesquisas/startup-test').expect(404);
+    assert.ok(!JSON.stringify(logs.mock.calls).includes('password'));
+    assert.ok(!JSON.stringify(logs.mock.calls).includes('private-data'));
+  } finally { spy.mockRestore(); logs.mockRestore(); }
+});
+
+test('auth login and registration return sanitized 503 during database unavailability without retrying writes', async () => {
+  const logs = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const userSpy = vi.spyOn(prisma.usuario, 'findUnique').mockRejectedValue(
+    Object.assign(new Error('Database unreachable'), { code: 'P1001' })
+  );
+  const txSpy = vi.spyOn(prisma, '$transaction').mockRejectedValue(
+    Object.assign(new Error('Transaction API error'), { code: 'P2028' })
+  );
+  try {
+    const loginRes = await supertest(app).post('/api/auth/login')
+      .send({ email: 'synthetic-admin@example.invalid', senha: 'some-valid-length-password' })
+      .expect(503);
+    assert.deepEqual(loginRes.body, { erro: 'Servico temporariamente indisponivel.' });
+    assert.equal(loginRes.headers['retry-after'], '1');
+    assert.ok(!JSON.stringify(logs.mock.calls).includes('synthetic-admin'));
+
+    const cadastroRes = await supertest(app).post('/api/auth/cadastro')
+      .send({
+        empresa: { nome: 'Nova Empresa', email: 'empresa@example.invalid' },
+        nome: 'Usuario Teste',
+        email: 'usuario@example.invalid',
+        senha: 'some-valid-length-password'
+      })
+      .expect(503);
+    assert.deepEqual(cadastroRes.body, { erro: 'Servico temporariamente indisponivel.' });
+    assert.equal(cadastroRes.headers['retry-after'], '1');
+    assert.ok(!JSON.stringify(logs.mock.calls).includes('usuario@example.invalid'));
+  } finally { userSpy.mockRestore(); txSpy.mockRestore(); logs.mockRestore(); }
+});
+
+test('checkDatabaseReadiness times out quickly on unresponsive database', async () => {
+  const { checkDatabaseReadiness } = await import('../src/config/prisma.js');
+  const hangingClient = {
+    $runCommandRaw: () => new Promise(() => {}), // Never resolves
+  };
+  const started = Date.now();
+  const result = await checkDatabaseReadiness(hangingClient, 50);
+  const elapsed = Date.now() - started;
+  assert.equal(result.ready, false);
+  assert.ok(elapsed < 1000, `Expected fast timeout, took ${elapsed}ms`);
+});
+
 test('one trusted reverse proxy uses the nearest client IP, ignoring spoofed earlier hops', async () => {
   const previous = app.get('trust proxy');
   app.set('trust proxy', 1);

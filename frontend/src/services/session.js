@@ -62,8 +62,16 @@ async function restore() {
   return restorePromise;
 }
 
-async function authenticate(path, body) {
-  const result = sessionSchema.safeParse(await request(path, { method: 'POST', body, authenticated: false }));
+export const AUTH_TIMEOUT_MS = 45000;
+
+async function authenticate(path, body, options = {}) {
+  const result = sessionSchema.safeParse(await request(path, {
+    method: 'POST',
+    body,
+    authenticated: false,
+    timeoutMs: options.timeoutMs ?? AUTH_TIMEOUT_MS,
+    signal: options.signal,
+  }));
   if (!result.success) throw new ApiError('Recebemos uma resposta inesperada. Tente novamente.');
   const payload = result.data;
   if (!adopt(payload, 'authenticated')) throw new Error('Sua sess\u00e3o expirou. Entre novamente.');
@@ -76,7 +84,7 @@ configureAuthorization(() => token, rejectedToken => {
 
 export const session = {
   state: readonly(state), restore, retry: verify,
-  login: body => authenticate('/auth/login', body),
-  register: body => authenticate('/auth/cadastro', body),
+  login: (body, options) => authenticate('/auth/login', body, options),
+  register: (body, options) => authenticate('/auth/cadastro', body, options),
   logout: () => clear(),
 };

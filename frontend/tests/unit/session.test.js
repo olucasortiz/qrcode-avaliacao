@@ -56,3 +56,13 @@ it('ignora cache malformado e nao envia seu conteudo ao servidor', async () => {
   const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
   await session.restore(); expect(session.state.phase).toBe('anonymous'); expect(fetcher).not.toHaveBeenCalled();
 });
+it('auth login e register usam timeout de 45s para acomodar cold start e nunca repetem POST', async () => {
+  const { session, AUTH_TIMEOUT_MS } = await import('../../src/services/session.js');
+  expect(AUTH_TIMEOUT_MS).toBe(45000);
+  const fetcher = vi.fn().mockResolvedValue(new Response('{}', { status: 503 }));
+  vi.stubGlobal('fetch', fetcher);
+  await expect(session.login({ email: 'user@example.com', senha: '123' })).rejects.toThrow();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  await expect(session.register({ empresa: { nome: 'E', email: 'e@e.com' }, nome: 'N', email: 'e@e.com', senha: '123' })).rejects.toThrow();
+  expect(fetcher).toHaveBeenCalledTimes(2);
+});

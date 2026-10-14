@@ -12,7 +12,7 @@ import { session } from '../services/session.js';
 const route = useRoute();
 const router = useRouter();
 const expired = computed(() => route.query.motivo === 'expirada' || session.state.reason === 'expired');
-const { values, errors, error, pending, formElement, validateField, edited, submit } = useAuthForm(loginSchema,
+const { values, errors, error, pending, slowPending, formElement, validateField, edited, submit } = useAuthForm(loginSchema,
   { email: '', senha: '' }, async data => { await session.login(data); await router.replace({ name: 'dashboard' }); });
 </script>
 
@@ -22,6 +22,7 @@ const { values, errors, error, pending, formElement, validateField, edited, subm
     <form ref="formElement" novalidate :aria-busy="pending" @submit.prevent="submit">
       <FormNotice v-if="expired" tone="info">Sua sess&#x00e3;o expirou. Entre novamente.</FormNotice>
       <FormNotice v-if="error">{{ error }}</FormNotice>
+      <FormNotice v-else-if="slowPending" tone="info">Conectando ao servidor... Aguarde mais um momento.</FormNotice>
       <div class="form-stack">
         <FormField id="login-email" v-model="values.email" label="Email" type="email" autocomplete="username" maxlength="254" :error="errors.email" :disabled="pending" @blur="validateField('email')" @edit="edited('email')" />
         <FormField id="login-password" v-model="values.senha" label="Senha" type="password" autocomplete="current-password" maxlength="72" :error="errors.senha" :disabled="pending" @blur="validateField('senha')" @edit="edited('senha')" />

@@ -54,5 +54,5 @@ export function publicError(error, sending = false) {
     message: 'Reduza o tamanho dos textos e tente novamente.', retry: true };
   return { title: sending ? 'Ainda não conseguimos confirmar o envio.' : 'Não conseguimos abrir a pesquisa.',
     message: sending ? 'Suas respostas estão preservadas. Confira sua conexão e tente confirmar o envio novamente.'
-      : 'Confira sua conexão e tente novamente em instantes.', retry: true };
+      : 'O serviço está temporariamente indisponível ou a conexão foi interrompida. Tente novamente em instantes.', retry: true };
 }

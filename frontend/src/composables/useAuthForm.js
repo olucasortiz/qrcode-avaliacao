@@ -6,7 +6,9 @@ export function useAuthForm(schema, initial, submitAction) {
   const errors = ref({});
   const error = ref('');
   const pending = ref(false);
+  const slowPending = ref(false);
   const formElement = ref(null);
+  let slowTimer;
 
   function validateField(path) {
     const all = fieldErrors(schema.safeParse(values));
@@ -32,6 +34,11 @@ export function useAuthForm(schema, initial, submitAction) {
     errors.value = fieldErrors(result);
     if (!result.success) { await focusError(); return; }
     pending.value = true;
+    slowPending.value = false;
+    clearTimeout(slowTimer);
+    slowTimer = setTimeout(() => {
+      if (pending.value) slowPending.value = true;
+    }, 6000);
     try { await submitAction(result.data); }
     catch (failure) {
       error.value = failure.message || 'N\u00e3o foi poss\u00edvel continuar. Tente novamente.';
@@ -39,8 +46,16 @@ export function useAuthForm(schema, initial, submitAction) {
         if (typeof detail.campo === 'string' && typeof detail.mensagem === 'string') errors.value[detail.campo] = detail.mensagem;
       }
       await focusError();
-    } finally { pending.value = false; }
+    } finally {
+      clearTimeout(slowTimer);
+      pending.value = false;
+      slowPending.value = false;
+    }
   }
 
-  return { values, errors, error, pending, formElement, validateField, edited, submit };
+  function dispose() {
+    clearTimeout(slowTimer);
+  }
+
+  return { values, errors, error, pending, slowPending, formElement, validateField, edited, submit, dispose };
 }

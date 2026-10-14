@@ -20,6 +20,7 @@ export function usePublicSurvey(service = publicSurveys, storage = publicDraftSt
   const answers = reactive({});
   const fieldError = ref('');
   const loadError = ref(null);
+  const slowLoading = ref(false);
   const sendError = ref(null);
   const sending = ref(false);
   const uncertain = ref(false);
@@ -32,6 +33,8 @@ export function usePublicSurvey(service = publicSurveys, storage = publicDraftSt
   let origin;
   let attempt;
   let storageKey;
+  let loadController;
+  let slowTimer;
   function persist() {
     if (!storageKey || !survey.value || !['intro', 'questions'].includes(phase.value)) return;
     storage.write(storageKey, { version: 1, phase: phase.value, index: index.value, answers: { ...answers }, attempt: attempt ?? null });
@@ -40,6 +43,12 @@ export function usePublicSurvey(service = publicSurveys, storage = publicDraftSt
 
   async function load(nextSlug, nextOrigin) {
     const current = ++generation;
+    loadController?.abort();
+    clearTimeout(slowTimer);
+    const controller = new AbortController();
+    loadController = controller;
+    slowLoading.value = false;
+    slowTimer = setTimeout(() => { if (current === generation) slowLoading.value = true; }, 8000);
     phase.value = 'loading';
     loadError.value = null;
     sendError.value = null;
@@ -55,7 +64,7 @@ export function usePublicSurvey(service = publicSurveys, storage = publicDraftSt
     storageKey = draftKey(slug, origin);
     try {
       if (typeof slug !== 'string' || !slug || slug.length > 200 || !originSchema.safeParse(origin).success) throw new ApiError('Link inválido.', 400);
-      const loaded = await service.get(slug, origin);
+      const loaded = await service.get(slug, origin, { signal: controller.signal });
       if (current !== generation) return;
       survey.value = loaded;
       const restored = restoreDraft(storage.read(storageKey), loaded, origin);
@@ -68,9 +77,11 @@ export function usePublicSurvey(service = publicSurveys, storage = publicDraftSt
         phase.value = restored.phase;
       } else phase.value = 'intro';
     } catch (error) {
-      if (current !== generation) return;
+      if (current !== generation || controller.signal.aborted) return;
       loadError.value = publicError(error);
       phase.value = 'error';
+    } finally {
+      if (current === generation) { clearTimeout(slowTimer); slowLoading.value = false; }
     }
   }
   function start() { if (phase.value === 'intro') phase.value = 'questions'; }
@@ -133,7 +144,7 @@ export function usePublicSurvey(service = publicSurveys, storage = publicDraftSt
       if (current === generation) sending.value = false;
     }
   }
-  function dispose() { generation++; stopPersistence(); }
-  return { phase, survey, index, answers, question, last, fieldError, loadError, sendError, sending, uncertain, locked, progress,
+  function dispose() { generation++; loadController?.abort(); clearTimeout(slowTimer); stopPersistence(); }
+  return { phase, survey, index, answers, question, last, fieldError, loadError, slowLoading, sendError, sending, uncertain, locked, progress,
     load, start, setAnswer, back, next, submit, dispose };
 }

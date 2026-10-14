@@ -173,6 +173,24 @@ test('falha de conexao preserva preenchimento e impede envios simultaneos', asyn
   await expect(page.getByRole('button', { name: 'Entrar', exact: true })).toBeEnabled();
 });
 
+test('aviso de inicializacao lenta (cold start) e tratamento de 503 no login', async ({ page }) => {
+  await page.goto('/entrar');
+  await page.getByLabel('Email', { exact: true }).fill('browser-user@example.com');
+  await page.getByLabel('Senha', { exact: true }).fill(password);
+  let pendingRoute;
+  await page.route('**/api/auth/login', route => { pendingRoute = route; });
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await page.waitForTimeout(6500);
+  await expect(page.getByRole('status')).toContainText('Conectando ao servidor... Aguarde mais um momento.');
+  await pendingRoute.fulfill({
+    status: 503,
+    contentType: 'application/json',
+    body: JSON.stringify({ erro: 'Servico temporariamente indisponivel.' }),
+  });
+  await expect(page.getByRole('alert')).toContainText('Servico temporariamente indisponivel.');
+  await expect(page.getByRole('button', { name: 'Entrar', exact: true })).toBeEnabled();
+});
+
 test('logout pelo menu mobile libera scroll e remove a sessao', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await restore(page);

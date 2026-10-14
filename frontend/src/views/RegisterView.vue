@@ -9,7 +9,7 @@ import { registerSchema } from '../lib/authSchemas.js';
 import { session } from '../services/session.js';
 
 const router = useRouter();
-const { values, errors, error, pending, formElement, validateField, edited, submit } = useAuthForm(registerSchema,
+const { values, errors, error, pending, slowPending, formElement, validateField, edited, submit } = useAuthForm(registerSchema,
   { empresa: { nome: '', email: '' }, nome: '', email: '', senha: '' },
   async data => { await session.register(data); await router.replace({ name: 'dashboard' }); });
 </script>
@@ -19,6 +19,7 @@ const { values, errors, error, pending, formElement, validateField, edited, subm
     <header class="auth-heading"><h1 id="register-heading">Crie sua conta.</h1></header>
     <form ref="formElement" novalidate :aria-busy="pending" @submit.prevent="submit">
       <FormNotice v-if="error">{{ error }}</FormNotice>
+      <FormNotice v-else-if="slowPending" tone="info">Conectando ao servidor... Aguarde mais um momento.</FormNotice>
       <fieldset class="form-section" :disabled="pending">
         <legend><span class="section-index" aria-hidden="true">01</span> Empresa</legend>
         <div class="form-stack">

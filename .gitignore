@@ -58,3 +58,4 @@ Thumbs.db
 docs/*
 !docs/deployment/
 !docs/deployment/**
+docs

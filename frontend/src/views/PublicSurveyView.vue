@@ -10,7 +10,7 @@ import { usePublicSurvey } from '../composables/usePublicSurvey.js';
 import '../styles/public-survey.css';
 
 const route = useRoute();
-const { phase, survey, index, answers, question, last, fieldError, loadError, sendError, sending, uncertain, locked,
+const { phase, survey, index, answers, question, last, fieldError, loadError, slowLoading, sendError, sending, uncertain, locked,
   load, start, setAnswer, back, next, submit, dispose, progress } = usePublicSurvey();
 const heading = ref(null);
 const form = ref(null);
@@ -55,7 +55,7 @@ onBeforeUnmount(dispose);
     <main id="public-main" class="public-main" tabindex="-1">
       <div v-if="phase === 'loading'" class="public-loading" role="status">
         <LoaderCircle class="spin" :size="24" aria-hidden="true" />
-        <p>Preparando sua pesquisa…</p>
+        <p>{{ slowLoading ? 'A conexão está demorando. Continuamos tentando abrir sua pesquisa…' : 'Preparando sua pesquisa…' }}</p>
       </div>
       <template v-else>
         <div v-if="phase === 'questions'" class="public-progress">
@@ -100,7 +100,7 @@ onBeforeUnmount(dispose);
           </section>
           <section v-else-if="phase === 'error'" :key="panelKey" class="public-panel public-unavailable" aria-labelledby="public-heading">
             <PublicSurveyMark />
-            <div class="public-eyebrow">PESQUISA INDISPONÍVEL</div>
+            <div class="public-eyebrow">{{ loadError.retry ? 'CONEXÃO INTERROMPIDA' : 'PESQUISA INDISPONÍVEL' }}</div>
             <h1 id="public-heading" ref="heading" tabindex="-1">{{ loadError.title }}</h1>
             <p class="public-description">{{ loadError.message }}</p>
             <AppButton v-if="loadError.retry" @click="reload"><RefreshCw :size="18" aria-hidden="true" /> Tentar novamente</AppButton>

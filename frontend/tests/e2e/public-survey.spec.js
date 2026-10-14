@@ -191,6 +191,29 @@ test('carregamento público aparece enquanto a API está pendente', async ({ pag
   release(); await ready(page, fixture.survey.titulo);
 });
 
+test('startup lento e falha transitória recuperam sem classificar pesquisa como inválida', async ({ page, request }) => {
+  test.setTimeout(45000);
+  const fixture = await createSurvey(request, ['ESTRELAS']);
+  let calls = 0;
+  await page.route('**/api/public/pesquisas/*', async route => {
+    calls++;
+    if (calls === 1) return route.fulfill({ status: 503, json: { erro: 'Servico temporariamente indisponivel.' } });
+    await new Promise(resolve => setTimeout(resolve, 17000));
+    await route.continue();
+  });
+  await page.goto(fixture.url);
+  await expect(page.getByRole('status')).toContainText('A conexão está demorando', { timeout: 12000 });
+  const directory = resolve('artifacts/task19-3'); mkdirSync(directory, { recursive: true });
+  for (const width of [360, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await screenshot(page, directory, `loading-${width}`);
+  }
+  await expect(page.getByRole('heading', { name: fixture.survey.titulo, exact: true })).toBeVisible({ timeout: 25000 });
+  await ready(page, fixture.survey.titulo);
+  expect(calls).toBe(2);
+  await expect(page.getByRole('button', { name: 'Tentar novamente' })).toHaveCount(0);
+});
+
 test('pesquisa inexistente, rascunho, encerrada e token inválido/desativado', async ({ page, request }) => {
   const fixture = await createSurvey(request, ['ESTRELAS']);
   await page.goto('/p/pesquisa-inexistente');
@@ -242,7 +265,8 @@ test('pesquisa sem perguntas válidas é indisponível e mensagens internas não
   const fixture = await createSurvey(request, ['ESTRELAS']);
   await page.route('**/api/public/pesquisas/*', route => route.fulfill({ json: { titulo: 'Inválida', slug: fixture.survey.slug, perguntas: [] } }));
   await page.goto(fixture.url);
-  await expect(page.getByRole('heading', { name: 'Esta pesquisa está indisponível.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Não conseguimos abrir a pesquisa.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
   await page.unroute('**/api/public/pesquisas/*');
   await page.route('**/api/public/pesquisas/*', route => route.fulfill({ status: 500, json: { erro: 'DB_SECRET stacktrace informação interna' } }));
   await page.reload();

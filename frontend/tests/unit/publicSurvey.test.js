@@ -60,7 +60,7 @@ describe('Contrato da pesquisa pública', () => {
 describe('Fluxo público', () => {
   it('carrega sem autenticação, navega e preserva respostas ao voltar', async () => {
     const { state, service } = await setup();
-    expect(service.get).toHaveBeenCalledWith('experiencia', undefined);
+    expect(service.get).toHaveBeenCalledWith('experiencia', undefined, { signal: expect.any(AbortSignal) });
     await state.next();
     expect(state.index.value).toBe(0);
     expect(state.fieldError.value).toContain('Responda');
@@ -136,8 +136,26 @@ describe('Fluxo público', () => {
     const state = usePublicSurvey(service);
     const old = state.load('antiga');
     await state.load('experiencia');
+    expect(service.get.mock.calls[0][2].signal.aborted).toBe(true);
     resolve({ ...survey, titulo: 'Antiga' }); await old;
     expect(state.survey.value.titulo).toBe(survey.titulo);
+  });
+  it('dispose cancela GET e aviso lento sem mostrar erro nem aceitar resultado antigo', async () => {
+    vi.useFakeTimers();
+    try {
+      let resolve;
+      const service = { get: vi.fn(() => new Promise(done => { resolve = done; })) };
+      const state = usePublicSurvey(service);
+      const pending = state.load('experiencia');
+      await vi.advanceTimersByTimeAsync(8000);
+      expect(state.slowLoading.value).toBe(true);
+      state.dispose();
+      expect(service.get.mock.calls[0][2].signal.aborted).toBe(true);
+      resolve(survey); await pending;
+      expect(state.survey.value).toBeNull();
+      expect(state.loadError.value).toBeNull();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
   });
   it('envia pesquisa com todas as perguntas opcionais puladas', async () => {
     const data = { ...survey, perguntas: [{ ...questions[3], obrigatoria: false }] };

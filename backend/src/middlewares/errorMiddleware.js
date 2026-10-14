@@ -25,6 +25,15 @@ export function errorHandler(error, req, res, next) {
     return res.status(400).json({ erro: 'Documento falhou na validacao de schema do banco de dados.' });
   }
   if (error.code === 'P2025') return res.status(404).json({ erro: 'Registro nao encontrado.' });
+  // Availability errors must not look like a missing survey. Never log raw Prisma errors.
+  const availabilityCode = error.code ?? error.errorCode;
+  const isAvailabilityError = ['P1001', 'P1002', 'P1008', 'P1011', 'P1017', 'P2024', 'P2028'].includes(availabilityCode) ||
+    (availabilityCode === 'P2010' && typeof error.message === 'string' && /timed? out|server selection|connection/i.test(error.message));
+  if (isAvailabilityError) {
+    console.error('Banco temporariamente indisponivel.', { code: availabilityCode });
+    res.set('Retry-After', '1');
+    return res.status(503).json({ erro: 'Servico temporariamente indisponivel.' });
+  }
   // Prisma errors can contain request arguments and credentials.
   console.error('Erro interno na API.', {
     code: typeof error.code === 'string' && /^P\d{4}$/.test(error.code) ? error.code : 'INTERNAL',
